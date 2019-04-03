@@ -18,7 +18,7 @@ from tqdm import tqdm
 import warnings
 
 warnings.filterwarnings('ignore')
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
     backbone = Interface.from_name(backbone_name)(pretrained=False)
