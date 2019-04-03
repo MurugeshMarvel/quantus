@@ -75,10 +75,9 @@ def _train(backbone_name, path_to_data_dir, path_to_checkpoints_dir):
     num_steps_to_snapshot = 10
     num_steps_to_stop_training = 80000
     print ('Creating Ground Truth Annotations for validation')
-    with open('data/test.txt','r') as files:
+    with open(os.path.join(path_to_data_dir,'test.txt'),'r') as files:
         lines = files.readlines()
         val_img_files = [line.rstrip() for line in lines]
-    annotation_files = [file+'.xml' for file in val_img_files]
     xml_dir = './data/annotation/'
     out_dir = './val_dir/ground-truth/'
 
