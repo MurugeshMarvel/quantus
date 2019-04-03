@@ -267,6 +267,7 @@ def get_enclosing_box(corners):
 
 
 def letterbox_image(img, inp_dim):
+    print(inp_dim)
     '''resize image with unchanged aspect ratio using padding
     
     Parameters
@@ -285,10 +286,12 @@ def letterbox_image(img, inp_dim):
         Resized image
     
     '''
-
-    inp_dim = (inp_dim, inp_dim)
+    print(inp_dim)
+    inp_dim = (inp_dim[0], inp_dim[1])
     img_w, img_h = img.shape[1], img.shape[0]
     w, h = inp_dim
+    print(w)
+    print(h)
     new_w = int(img_w * min(w/img_w, h/img_h))
     new_h = int(img_h * min(w/img_w, h/img_h))
     resized_image = cv2.resize(img, (new_w,new_h))

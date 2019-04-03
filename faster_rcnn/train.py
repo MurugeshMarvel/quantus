@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 from collections import deque
+import pickle as pkl
 import torch
 import xml.etree.ElementTree as ET
 from torch import optim
@@ -9,11 +10,14 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from backbone.interface import Interface
-from utils.dataset import Dataset
+from dataset import Dataset
 from model import Model
 from utils.bbox import BBox
 from evaluate import get_map_score
 from tqdm import tqdm
+import warnings
+
+warnings.filterwarnings('ignore')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
@@ -74,30 +78,10 @@ def _train(backbone_name, path_to_data_dir, path_to_checkpoints_dir):
     num_steps_to_snapshot = 1000
     num_steps_to_stop_training = 80000
     print ('Creating Ground Truth Annotations for validation')
-    with open('data/test.txt','r') as files:
+    with open(os.path.join(path_to_data_dir, 'test.txt'),'r') as files:
         lines = files.readlines()
         val_img_files = [line.rstrip() for line in lines]
-    annotation_files = [file+'.xml' for file in val_img_files]
-    xml_dir = './data/annotation/'
-    out_dir = './val_dir/ground-truth/'
-    for file in annotation_files:
-        file_name = file.split('.')[0]
-        xml_file = file_name+'.xml'
-        annotation_xml_file = os.path.join(xml_dir, xml_file)
-        tree = ET.ElementTree(file = annotation_xml_file)
-        out_file = os.path.join(out_dir, file_name+'.txt')
-        root = tree.getroot()
-        #filename = next(root.iterfind('filename')).text
-        names = [next(tag_object.iterfind('name')).text for tag_object in root.iterfind('object')]
-        left = [float(next(tag_object.iterfind('bndbox/xmin')).text) for tag_object in root.iterfind('object')]
-        top = [float(next(tag_object.iterfind('bndbox/ymin')).text) for tag_object in root.iterfind('object')]
-        right = [float(next(tag_object.iterfind('bndbox/xmax')).text) for tag_object in root.iterfind('object')]
-        bottom = [float(next(tag_object.iterfind('bndbox/ymax')).text) for tag_object in root.iterfind('object')]
-        for label, left, top, right, bottom in zip(names, left, top, right, bottom):
-                val = "\n{} {} {} {} {}".format(label, left, top, right, bottom)
-                with open(out_file,'a') as fil:
-                    fil.write(val)
-
+    annotations = pkl.load(open(os.path.join(path_to_data_dir, 'annt/annotation_file.pkl'), 'rb'))
     print('Start training')
 
     while not should_stop:

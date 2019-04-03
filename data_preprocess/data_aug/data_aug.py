@@ -697,27 +697,29 @@ class Resize(object):
         
     """
     
-    def __init__(self, inp_dim):
-        self.inp_dim = inp_dim
-        
+    def __init__(self, out_shape):
+        self.out_width = out_shape[0]
+        self.out_height = out_shape[1]
+        self.out_shape = out_shape
     def __call__(self, img, bboxes):
         w,h = img.shape[1], img.shape[0]
-        img = letterbox_image(img, self.inp_dim)
+        #img = letterbox_image(img, self.out_shape)
+        img = cv2.resize(img, self.out_shape) 
+        width_scale = self.out_width/ w
+        height_scale = self.out_height / h
+        #scale = min(self.inp_dim/h, self.inp_dim/w)
+        bboxes[:,[0,2]] *= (width_scale)
+        bboxes[:, [1,3]] *= (height_scale)
     
+        new_w = w * width_scale
+        new_h = h * height_scale
     
-        scale = min(self.inp_dim/h, self.inp_dim/w)
-        bboxes[:,:4] *= (scale)
+        #del_h = (inp_dim - new_h)/2
+        #del_w = (inp_dim - new_w)/2
     
-        new_w = scale*w
-        new_h = scale*h
-        inp_dim = self.inp_dim   
+        #add_matrix = np.array([[del_w, del_h, del_w, del_h]]).astype(int)
     
-        del_h = (inp_dim - new_h)/2
-        del_w = (inp_dim - new_w)/2
-    
-        add_matrix = np.array([[del_w, del_h, del_w, del_h]]).astype(int)
-    
-        bboxes[:,:4] += add_matrix
+        #bboxes[:,:4] += add_matrix
     
         img = img.astype(np.uint8)
     

@@ -1,12 +1,12 @@
 import os
 import random
-import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import List, Tuple
 import PIL
 from torch.utils.data import Dataset
 from PIL import Image, ImageOps
 from torch import Tensor
+import pickle as pkl
 from torchvision import transforms
 from utils.bbox import BBox
 import torch
@@ -18,28 +18,29 @@ class Dataset(Dataset):
     
     class Annotation(object):
         class Object(object):
-            def __init__(self, name: str, bbox: BBox):
+            def __init__(self, name, bbox):
                 super().__init__()
                 self.name = name
                 self.bbox = bbox
-            def __repr__(self) -> str:
+            def __repr__(self):
                 return 'Object[name={:s}, bbox={!s}'.format(
                     self.name, self.bbox
                 )
-        def __init__(self, filename:str, objects:List[object]):
+        def __init__(self, filename, objects):
             super().__init__()
             self.filename = filename
             self.objects = objects
     cat_to_lab_dict = {
-        'background':0,
-        'parking_lot': 1
+        'button':0,
+        'beads': 1,
+        'backgrounds':2
     }
     lab_to_cat_dict = {v: k for k,v in cat_to_lab_dict.items()}
     def __init__(self, data_path, mode):
         super().__init__()
         self.mode = mode
         self.image_path = os.path.join(data_path,'images')
-        annotation_path = os.path.join(data_path, 'annotation')
+        annotation_path = os.path.join(data_path, 'annt/annotation_file.pkl')
         if self.mode == Dataset.Mode.TRAIN:
             image_file_index = os.path.join(data_path, 'train.txt')
         elif self.mode == Dataset.Mode.TEST:
@@ -49,22 +50,20 @@ class Dataset(Dataset):
         with open(image_file_index, 'r') as file:
             lines = file.readlines()
             self._image_ids = [line.rstrip() for line in lines]
+        self.annotation_file = pkl.load(open(annotation_path, 'rb'))
         self._image_id_to_annotation_dict = {}
         for img_id in self._image_ids:
-            annotation_xml_file = os.path.join(annotation_path, '{}.xml'.format(img_id))
-            tree = ET.ElementTree(file = annotation_xml_file)
-            root = tree.getroot()
-            
+            annotation_val = self.annotation_file[img_id]
             self._image_id_to_annotation_dict[img_id] = Dataset.Annotation(
-                filename = next(root.iterfind('filename')).text,
-                objects = [Dataset.Annotation.Object(name = next(tag_object.iterfind('name')).text,
+                filename = img_id + '.jpg',
+                objects = [Dataset.Annotation.Object(name = Dataset.lab_to_cat_dict[round(ent[4])],
                     bbox = BBox(
-                        left = float(next(tag_object.iterfind('bndbox/xmin')).text),
-                        top = float(next(tag_object.iterfind('bndbox/ymin')).text),
-                        right = float(next(tag_object.iterfind('bndbox/xmax')).text),
-                        bottom = float(next(tag_object.iterfind('bndbox/ymax')).text))
+                        left = ent[0],
+                        top = ent[1],
+                        right = ent[2],
+                        bottom = ent[3])
                     )
-                for tag_object in root.iterfind('object')]
+                for ent in annotation_val]
             )
     def __len__(self):
         return len(self._image_id_to_annotation_dict)
@@ -104,8 +103,8 @@ class Dataset(Dataset):
         return image, scale
 if __name__ == '__main__':
     def main():
-        dataset = Dataset(data_path='../data', mode = Dataset.Mode.TRAIN)
-        img_id, img, scale, bboxes, labels = dataset[0]
+        dataset = Dataset(data_path='../data_preprocess/data/', mode = Dataset.Mode.TRAIN)
+        img_id, img, scale, bboxes, labels = dataset[7]
         print ('image ID', img_id)
         print ('Image Shape', img.shape)
         #print ("Image: ", img)
