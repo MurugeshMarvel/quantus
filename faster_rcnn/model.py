@@ -11,7 +11,7 @@ from utils.bbox import BBox
 from utils.nms import NMS
 from utils.rpn import RegionProposalNetwork
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 class Model(nn.Module):
 
