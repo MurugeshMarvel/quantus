@@ -2,7 +2,6 @@ import argparse
 import os
 import time
 from collections import deque
-import pickle as pkl
 import torch
 import xml.etree.ElementTree as ET
 from torch import optim
@@ -14,10 +13,6 @@ from dataset import Dataset
 from model import Model
 from utils.bbox import BBox
 from evaluate import get_map_score
-from tqdm import tqdm
-import warnings
-
-warnings.filterwarnings('ignore')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
@@ -31,12 +26,13 @@ def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
         lines = files.readlines()
         val_img_files = [line.rstrip()+'.png' for line in lines]
     
-    for file in tqdm(val_img_files):
+    for file in val_img_files:
+        print (file)
         if file.endswith('.png'):
             file_name = file.split('.')[0]
             inp_img = os.path.join(inp_img_dir,file)
             out_txt = os.path.join(predicted_dir,file_name+'.txt')
-            #print(out_txt)
+            print(out_txt)
             image = transforms.Image.open(inp_img)
             image_tensor, scale = Dataset.preprocess(image)
             image_tensor = image_tensor.cuda()
@@ -48,11 +44,12 @@ def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
             detection_probs = forward_output.detection_probs
 
             for bbox, label, prob in zip(detection_bboxes.tolist(), detection_labels.tolist(), detection_probs.tolist()):
-                #if prob < 0.5:
-                    #continue
+                if prob < 0.5:
+                    continue
                 bbox = BBox(left=bbox[0], top=bbox[1], right=bbox[2], bottom=bbox[3])
                 category = Dataset.lab_to_cat_dict[label]
                 txt_val = "\n{} {} {} {} {} {}".format(category, prob, bbox.left, bbox.top, bbox.right, bbox.bottom)
+                print (out_txt)
                 with open(out_txt,'a') as out_file:
                     out_file.write(txt_val)
 def _train(backbone_name, path_to_data_dir, path_to_checkpoints_dir):
@@ -75,13 +72,16 @@ def _train(backbone_name, path_to_data_dir, path_to_checkpoints_dir):
     should_stop = False
  
     num_steps_to_display = 10
-    num_steps_to_snapshot = 1000
+    num_steps_to_snapshot = 10
     num_steps_to_stop_training = 80000
     print ('Creating Ground Truth Annotations for validation')
-    with open(os.path.join(path_to_data_dir, 'test.txt'),'r') as files:
+    with open('data/test.txt','r') as files:
         lines = files.readlines()
         val_img_files = [line.rstrip() for line in lines]
-    annotations = pkl.load(open(os.path.join(path_to_data_dir, 'annt/annotation_file.pkl'), 'rb'))
+    annotation_files = [file+'.xml' for file in val_img_files]
+    xml_dir = './data/annotation/'
+    out_dir = './val_dir/ground-truth/'
+
     print('Start training')
 
     while not should_stop:
@@ -126,12 +126,14 @@ def _train(backbone_name, path_to_data_dir, path_to_checkpoints_dir):
             if step % num_steps_to_snapshot == 0:
                 
                 path_to_checkpoint = model.save(path_to_checkpoints_dir, step)
+                '''
                 make_predict_annotation(path_to_checkpoint,backbone_name, predicted_dir)
                 map_score = get_map_score()
                 with open(os.path.join(path_to_checkpoints_dir,'map_log.txt'),'a') as maplog:
                     to_write = "step: {}, loss:{}, map:{} \n".format(step, loss, map_score)
                     maplog.write(to_write)
                 print ('***The MAP score is {}***'.format(map_score))
+                '''
                 print('Model saved to {}'.format(path_to_checkpoint))
 
             if step == num_steps_to_stop_training:

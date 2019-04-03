@@ -6,7 +6,7 @@ import operator
 import sys
 import argparse
 
-MINOVERLAP = 0.5 # default value (defined in the PASCAL VOC2012 challenge)
+MINOVERLAP = 0.5
 
 def get_map_score():
   ignore = []
@@ -14,20 +14,12 @@ def get_map_score():
   specific_iou_flagged = False
 
 
-  # try to import OpenCV if the user didn't choose the option --no-animation
   show_animation = False
 
-
-  """
-  throw error and exit
-  """
   def error(msg):
     print(msg)
     sys.exit(0)
 
-  """
-  check if the number is a float between 0.0 and 1.0
-  """
   def is_float_between_0_and_1(value):
     try:
       val = float(value)
@@ -38,74 +30,33 @@ def get_map_score():
     except ValueError:
       return False
 
-  """
-  Calculate the AP given the recall and precision array
-    1st) We compute a version of the measured precision/recall curve with
-        precision monotonically decreasing
-    2nd) We compute the AP as the area under this curve by numerical integration.
-  """
   def voc_ap(rec, prec):
-    """
-    --- Official matlab code VOC2012---
-    mrec=[0 ; rec ; 1];
-    mpre=[0 ; prec ; 0];
-    for i=numel(mpre)-1:-1:1
-        mpre(i)=max(mpre(i),mpre(i+1));
-    end
-    i=find(mrec(2:end)~=mrec(1:end-1))+1;
-    ap=sum((mrec(i)-mrec(i-1)).*mpre(i));
-    """
-    rec.insert(0, 0.0) # insert 0.0 at begining of list
-    rec.append(1.0) # insert 1.0 at end of list
+ 
+    rec.insert(0, 0.0) 
+    rec.append(1.0) 
     mrec = rec[:]
-    prec.insert(0, 0.0) # insert 0.0 at begining of list
+    prec.insert(0, 0.0) 
     prec.append(0.0) # insert 0.0 at end of list
     mpre = prec[:]
-    """
-    This part makes the precision monotonically decreasing
-      (goes from the end to the beginning)
-      matlab:  for i=numel(mpre)-1:-1:1
-                  mpre(i)=max(mpre(i),mpre(i+1));
-    """
-    # matlab indexes start in 1 but python in 0, so I have to do:
-    #   range(start=(len(mpre) - 2), end=0, step=-1)
-    # also the python function range excludes the end, resulting in:
-    #   range(start=(len(mpre) - 2), end=-1, step=-1)
+   
     for i in range(len(mpre)-2, -1, -1):
       mpre[i] = max(mpre[i], mpre[i+1])
-    """
-    This part creates a list of indexes where the recall changes
-      matlab:  i=find(mrec(2:end)~=mrec(1:end-1))+1;
-    """
+
     i_list = []
     for i in range(1, len(mrec)):
       if mrec[i] != mrec[i-1]:
-        i_list.append(i) # if it was matlab would be i + 1
-    """
-    The Average Precision (AP) is the area under the curve
-      (numerical integration)
-      matlab: ap=sum((mrec(i)-mrec(i-1)).*mpre(i));
-    """
+        i_list.append(i) 
     ap = 0.0
     for i in i_list:
       ap += ((mrec[i]-mrec[i-1])*mpre[i])
     return ap, mrec, mpre
 
-
-  """
-  Convert the lines of a file to a list
-  """
   def file_lines_to_list(path):
-    # open txt file lines to a list
     with open(path) as f:
       content = f.readlines()
-    # remove whitespace characters like `\n` at the end of each line
     content = [x.strip() for x in content]
     return content
 
-  """
-  Draws text in image
-  """
   def draw_text_in_image(img, text, pos, color, line_width):
     font = cv2.FONT_HERSHEY_PLAIN
     fontScale = 1
@@ -120,31 +71,19 @@ def get_map_score():
     text_width, _ = cv2.getTextSize(text, font, fontScale, lineType)[0]
     return img, (line_width + text_width)
 
-  """
-  Plot - adjust axes
-  """
   def adjust_axes(r, t, fig, axes):
-    # get text width for re-scaling
     bb = t.get_window_extent(renderer=r)
     text_width_inches = bb.width / fig.dpi
-    # get axis width in inches
     current_fig_width = fig.get_figwidth()
     new_fig_width = current_fig_width + text_width_inches
     propotion = new_fig_width / current_fig_width
-    # get axis limit
     x_lim = axes.get_xlim()
     axes.set_xlim([x_lim[0], x_lim[1]*propotion])
-
-
-  """
-  Create a "tmp_files/" and "results/" directory
-  """
   tmp_files_path = "tmp_files"
-  if not os.path.exists(tmp_files_path): # if it doesn't exist already
+  if not os.path.exists(tmp_files_path):
     os.makedirs(tmp_files_path)
   results_files_path = "results"
-  if os.path.exists(results_files_path): # if it exist already
-    # reset the results directory
+  if os.path.exists(results_files_path): 
     shutil.rmtree(results_files_path)
 
   os.makedirs(results_files_path)
@@ -153,30 +92,21 @@ def get_map_score():
     os.makedirs(results_files_path + "/images")
     os.makedirs(results_files_path + "/images/single_predictions")
 
-  """
-  Ground-Truth
-    Load each of the ground-truth files into a temporary ".json" file.
-    Create a list of all the class names present in the ground-truth (gt_classes).
-  """
-  # get a list with the ground-truth files
   ground_truth_files_list = glob.glob('val_dir/ground-truth/*.txt')
   if len(ground_truth_files_list) == 0:
     error("Error: No ground-truth files found!")
   ground_truth_files_list.sort()
-  # dictionary with counter per class
   gt_counter_per_class = {}
 
   for txt_file in ground_truth_files_list:
     #print(txt_file)
     file_id = txt_file.split(".txt",1)[0]
     file_id = os.path.basename(os.path.normpath(file_id))
-    # check if there is a correspondent predicted objects file
     if not os.path.exists('val_dir/predicted/' + file_id + ".txt"):
       error_msg = "Error. File not found: val_dir/predicted/" +  file_id + ".txt\n"
       error_msg += "(You can avoid this error message by running extra/intersect-gt-and-pred.py)"
       error(error_msg)
     lines_list = file_lines_to_list(txt_file)
-    # create ground-truth dictionary
     bounding_boxes = []
     is_difficult = False
     lines_list = lines_list[1:]
@@ -194,7 +124,6 @@ def get_map_score():
         error_msg += "\n\nIf you have a <class_name> with spaces between words you should remove them\n"
         error_msg += "by running the script \"remove_space.py\" or \"rename_class.py\" in the \"extra/\" folder."
         error(error_msg)
-      # check if class is in the ignore list, if yes skip
       if class_name in ignore:
         continue
       bbox = left + " " + top + " " + right + " " +bottom
@@ -203,27 +132,18 @@ def get_map_score():
           is_difficult = False
       else:
           bounding_boxes.append({"class_name":class_name, "bbox":bbox, "used":False})
-          # count that object
           if class_name in gt_counter_per_class:
             gt_counter_per_class[class_name] += 1
           else:
-            # if class didn't exist yet
             gt_counter_per_class[class_name] = 1
-    # dump bounding_boxes into a ".json" file
     with open(tmp_files_path + "/" + file_id + "_ground_truth.json", 'w') as outfile:
       json.dump(bounding_boxes, outfile)
 
   gt_classes = list(gt_counter_per_class.keys())
-  # let's sort the classes alphabetically
   gt_classes = sorted(gt_classes)
   n_classes = len(gt_classes)
   #print(gt_classes)
   #print(gt_counter_per_class)
-
-  """
-  Check format of the flag --set-class-iou (if used)
-    e.g. check if class exists
-  """
 
   predicted_files_list = glob.glob('val_dir/predicted/*.txt')
   predicted_files_list.sort()
@@ -232,7 +152,6 @@ def get_map_score():
     bounding_boxes = []
     for txt_file in predicted_files_list:
       #print(txt_file)
-      # the first time it checks if all the corresponding ground-truth files exist
       file_id = txt_file.split(".txt",1)[0]
       file_id = os.path.basename(os.path.normpath(file_id))
       if class_index == 0:
@@ -255,75 +174,53 @@ def get_map_score():
           bbox = left + " " + top + " " + right + " " +bottom
           bounding_boxes.append({"confidence":confidence, "file_id":file_id, "bbox":bbox})
           #print(bounding_boxes)
-    # sort predictions by decreasing confidence
+
     bounding_boxes.sort(key=lambda x:float(x['confidence']), reverse=True)
     with open(tmp_files_path + "/" + class_name + "_predictions.json", 'w') as outfile:
       json.dump(bounding_boxes, outfile)
 
-  """
-  Calculate the AP for each class
-  """
   sum_AP = 0.0
   ap_dictionary = {}
-  # open file to store the results
   with open(results_files_path + "/results.txt", 'w') as results_file:
     results_file.write("# AP and precision/recall per class\n")
     count_true_positives = {}
     for class_index, class_name in enumerate(gt_classes):
       count_true_positives[class_name] = 0
-      """
-      Load predictions of that class
-      """
       predictions_file = tmp_files_path + "/" + class_name + "_predictions.json"
       predictions_data = json.load(open(predictions_file))
-
-      """
-      Assign predictions to ground truth objects
-      """
       nd = len(predictions_data)
-      tp = [0] * nd # creates an array of zeros of size nd
+      tp = [0] * nd 
       fp = [0] * nd
       for idx, prediction in enumerate(predictions_data):
         file_id = prediction["file_id"]
         if show_animation:
-          # find ground truth image
           ground_truth_img = glob.glob1(img_path, file_id + ".*")
-          #tifCounter = len(glob.glob1(myPath,"*.tif"))
           if len(ground_truth_img) == 0:
             error("Error. Image not found with id: " + file_id)
           elif len(ground_truth_img) > 1:
             error("Error. Multiple image with id: " + file_id)
-          else: # found image
-            #print(img_path + "/" + ground_truth_img[0])
-            # Load image
+          else:
             img = cv2.imread(img_path + "/" + ground_truth_img[0])
-            # load image with draws of multiple detections
             img_cumulative_path = results_files_path + "/images/" + ground_truth_img[0]
             if os.path.isfile(img_cumulative_path):
               img_cumulative = cv2.imread(img_cumulative_path)
             else:
               img_cumulative = img.copy()
-            # Add bottom border to image
             bottom_border = 60
             BLACK = [0, 0, 0]
             img = cv2.copyMakeBorder(img, 0, bottom_border, 0, 0, cv2.BORDER_CONSTANT, value=BLACK)
-        # assign prediction to ground truth object if any
-        #   open ground-truth with that file_id
         gt_file = tmp_files_path + "/" + file_id + "_ground_truth.json"
         ground_truth_data = json.load(open(gt_file))
         ovmax = -1
         gt_match = -1
-        # load prediction bounding-box
         bb = [ float(x) for x in prediction["bbox"].split() ]
         for obj in ground_truth_data:
-          # look for a class_name match
           if obj["class_name"] == class_name:
             bbgt = [ float(x) for x in obj["bbox"].split() ]
             bi = [max(bb[0],bbgt[0]), max(bb[1],bbgt[1]), min(bb[2],bbgt[2]), min(bb[3],bbgt[3])]
             iw = bi[2] - bi[0] + 1
             ih = bi[3] - bi[1] + 1
             if iw > 0 and ih > 0:
-              # compute overlap (IoU) = area of intersection / area of union
               ua = (bb[2] - bb[0] + 1) * (bb[3] - bb[1] + 1) + (bbgt[2] - bbgt[0]
                       + 1) * (bbgt[3] - bbgt[1] + 1) - iw * ih
               ov = iw * ih / ua
@@ -331,10 +228,8 @@ def get_map_score():
                 ovmax = ov
                 gt_match = obj
 
-        # assign prediction as true positive/don't care/false positive
         if show_animation:
-          status = "NO MATCH FOUND!" # status is only used in the animation
-        # set minimum overlap
+          status = "NO MATCH FOUND!" 
         min_overlap = MINOVERLAP
         if specific_iou_flagged:
           if class_name in specific_iou_classes:
@@ -343,37 +238,27 @@ def get_map_score():
         if ovmax >= min_overlap:
           if "difficult" not in gt_match:
               if not bool(gt_match["used"]):
-                # true positive
                 tp[idx] = 1
                 gt_match["used"] = True
                 count_true_positives[class_name] += 1
-                # update the ".json" file
                 with open(gt_file, 'w') as f:
                     f.write(json.dumps(ground_truth_data))
                 if show_animation:
                   status = "MATCH!"
               else:
-                # false positive (multiple detection)
                 fp[idx] = 1
                 if show_animation:
                   status = "REPEATED MATCH!"
         else:
-          # false positive
           fp[idx] = 1
           if ovmax > 0:
             status = "INSUFFICIENT OVERLAP"
-
-        """
-        Draw image to show animation
-        """
         if show_animation:
           height, widht = img.shape[:2]
-          # colors (OpenCV works with BGR)
           white = (255,255,255)
           light_blue = (255,200,100)
           green = (0,255,0)
           light_red = (30,30,255)
-          # 1st line
           margin = 10
           v_pos = int(height - margin - (bottom_border / 2.0))
           text = "Image: " + ground_truth_img[0] + " "
@@ -388,9 +273,8 @@ def get_map_score():
               text = "IoU: {0:.2f}% ".format(ovmax*100) + ">= {0:.2f}% ".format(min_overlap*100)
               color = green
             img, _ = draw_text_in_image(img, text, (margin + line_width, v_pos), color, line_width)
-          # 2nd line
           v_pos += int(bottom_border / 2.0)
-          rank_pos = str(idx+1) # rank position (idx starts at 0)
+          rank_pos = str(idx+1) 
           text = "Prediction #rank: " + rank_pos + " confidence: {0:.2f}% ".format(float(prediction["confidence"])*100)
           img, line_width = draw_text_in_image(img, text, (margin, v_pos), white, 0)
           color = light_red
@@ -400,7 +284,7 @@ def get_map_score():
           img, line_width = draw_text_in_image(img, text, (margin + line_width, v_pos), color, line_width)
 
           font = cv2.FONT_HERSHEY_SIMPLEX
-          if ovmax > 0: # if there is intersections between the bounding-boxes
+          if ovmax > 0: 
             bbgt = [ int(round(float(x))) for x in gt_match["bbox"].split() ]
             cv2.rectangle(img,(bbgt[0],bbgt[1]),(bbgt[2],bbgt[3]),light_blue,2)
             cv2.rectangle(img_cumulative,(bbgt[0],bbgt[1]),(bbgt[2],bbgt[3]),light_blue,2)
@@ -409,17 +293,12 @@ def get_map_score():
           cv2.rectangle(img,(bb[0],bb[1]),(bb[2],bb[3]),color,2)
           cv2.rectangle(img_cumulative,(bb[0],bb[1]),(bb[2],bb[3]),color,2)
           cv2.putText(img_cumulative, class_name, (bb[0],bb[1] - 5), font, 0.6, color, 1, cv2.LINE_AA)
-          # show image
           cv2.imshow("Animation", img)
-          cv2.waitKey(20) # show for 20 ms
-          # save image to results
+          cv2.waitKey(20) 
           output_img_path = results_files_path + "/images/single_predictions/" + class_name + "_prediction" + str(idx) + ".jpg"
           cv2.imwrite(output_img_path, img)
-          # save the image with all the objects drawn to it
           cv2.imwrite(img_cumulative_path, img_cumulative)
 
-      #print(tp)
-      # compute precision/recall
       cumsum = 0
       for idx, val in enumerate(fp):
         fp[idx] += cumsum
@@ -440,10 +319,8 @@ def get_map_score():
 
       ap, mrec, mprec = voc_ap(rec, prec)
       sum_AP += ap
-      text = "{0:.2f}%".format(ap*100) + " = " + class_name + " AP  " #class_name + " AP = {0:.2f}%".format(ap*100)
-      """
-      Write to results.txt
-      """
+      text = "{0:.2f}%".format(ap*100) + " = " + class_name + " AP  " 
+
       rounded_prec = [ '%.2f' % elem for elem in prec ]
       rounded_rec = [ '%.2f' % elem for elem in rec ]
       results_file.write(text + "\n Precision: " + str(rounded_prec) + "\n Recall   :" + str(rounded_rec) + "\n\n")
@@ -460,56 +337,33 @@ def get_map_score():
     results_file.write(text + "\n")
     #print(text)
 
-  # remove the tmp_files directory
   shutil.rmtree(tmp_files_path)
 
-  """
-  Count total of Predictions
-  """
-  # iterate through all the files
   pred_counter_per_class = {}
-  #all_classes_predicted_files = set([])
   for txt_file in predicted_files_list:
-    # get lines to list
     lines_list = file_lines_to_list(txt_file)
     lines_list =lines_list[1:]
     for line in lines_list:
       class_name = line.split()[0]
-      # check if class is in the ignore list, if yes skip
       if class_name in ignore:
         continue
-      # count that object
       if class_name in pred_counter_per_class:
         pred_counter_per_class[class_name] += 1
       else:
-        # if class didn't exist yet
         pred_counter_per_class[class_name] = 1
   #print(pred_counter_per_class)
   pred_classes = list(pred_counter_per_class.keys())
 
-
-
-  """
-  Write number of ground-truth objects per class to results.txt
-  """
   with open(results_files_path + "/results.txt", 'a') as results_file:
     results_file.write("\n# Number of ground-truth objects per class\n")
     for class_name in sorted(gt_counter_per_class):
       results_file.write(class_name + ": " + str(gt_counter_per_class[class_name]) + "\n")
 
-  """
-  Finish counting true positives
-  """
   for class_name in pred_classes:
-    # if class exists in predictions but not in ground-truth then there are no true positives in that class
     if class_name not in gt_classes:
       count_true_positives[class_name] = 0
   #print(count_true_positives)
 
-
-  """
-  Write number of predicted objects per class to results.txt
-  """
   with open(results_files_path + "/results.txt", 'a') as results_file:
     results_file.write("\n# Number of predicted objects per class\n")
     for class_name in sorted(pred_classes):
