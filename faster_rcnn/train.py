@@ -18,12 +18,12 @@ from tqdm import tqdm
 import warnings
 
 warnings.filterwarnings('ignore')
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
     backbone = Interface.from_name(backbone_name)(pretrained=False)
     #model = Model(backbone).cuda()
-    model = Model(backbone).to(device)
+    model = Model(backbone).cuda()
     model.load(checkpoint_model)
     inp_img_dir = './data/images/'
     #forward_input = Model.ForwardInput.Eval(image_tensor.cuda())
@@ -39,7 +39,7 @@ def make_predict_annotation(checkpoint_model, backbone_name, predicted_dir):
             #print(out_txt)
             image = transforms.Image.open(inp_img)
             image_tensor, scale = Dataset.preprocess(image)
-            image_tensor = image_tensor.to(device)
+            image_tensor = image_tensor.cuda()
             forward_input = Model.ForwardInput.Eval(image_tensor)
             forward_output= model.eval().forward(forward_input)
 
