@@ -28,5 +28,5 @@ print (img_path)
 print (annt_path)
 
 img = cv2.imread(img_path)[:,:,::-1]
-tree = ET.ElementTree(file="aug_img/img_100-6_aug_1.xml")
+tree = ET.ElementTree(file="aug_img /img_100-6_aug_1.xml")
 root = tree.getroot()

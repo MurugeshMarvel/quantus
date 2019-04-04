@@ -98,4 +98,4 @@ class SSD300(nn.Module):
                 layers += [nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
                            nn.ReLU(True)]
                 in_channels = x
-return nn.Sequential(*layers)
+    return nn.Sequential(*layers)

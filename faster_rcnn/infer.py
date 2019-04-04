@@ -30,7 +30,8 @@ def _infer(path_to_input_image: str, path_to_output_image: str, path_to_checkpoi
     draw = ImageDraw.Draw(image)
     print (detection_probs)
     for bbox, label, prob in zip(detection_bboxes.tolist(), detection_labels.tolist(), detection_probs.tolist()):
-        if prob < 0.6:
+        print(label)
+        if prob < 0.4:
             continue
         color = random.choice(['red', 'green', 'blue', 'yellow', 'purple', 'white'])
         bbox = BBox(left=bbox[0], top=bbox[1], right=bbox[2], bottom=bbox[3])

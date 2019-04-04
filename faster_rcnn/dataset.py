@@ -31,9 +31,9 @@ class Dataset(Dataset):
             self.filename = filename
             self.objects = objects
     cat_to_lab_dict = {
-        'button':0,
-        'beads': 1,
-        'backgrounds':2
+        'button':1,
+        'beads': 2,
+        'backgrounds':0
     }
     lab_to_cat_dict = {v: k for k,v in cat_to_lab_dict.items()}
     def __init__(self, data_path, mode):
