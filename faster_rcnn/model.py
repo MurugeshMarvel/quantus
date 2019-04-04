@@ -133,7 +133,7 @@ class Model(nn.Module):
 
     def load(self, path_to_checkpoint):
         print ('************',path_to_checkpoint)
-        self.load_state_dict(torch.load(path_to_checkpoint))
+        self.load_state_dict(torch.load(path_to_checkpoint ,map_location ='cpu'))
         return self
 
     def _generate_detections(self, proposal_bboxes, proposal_classes, proposal_transformers, image_width, image_height):

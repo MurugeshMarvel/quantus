@@ -5,7 +5,7 @@ from PIL import ImageDraw
 from torchvision.transforms import transforms
 
 from backbone.interface import Interface
-from bbox import BBox
+from utils.bbox import BBox
 from dataset import Dataset
 from model import Model
 
@@ -34,7 +34,7 @@ def _infer(path_to_input_image: str, path_to_output_image: str, path_to_checkpoi
             continue
         color = random.choice(['red', 'green', 'blue', 'yellow', 'purple', 'white'])
         bbox = BBox(left=bbox[0], top=bbox[1], right=bbox[2], bottom=bbox[3])
-        category = Dataset.LABEL_TO_CATEGORY_DICT[label]
+        category = Dataset.lab_to_cat_dict[label]
 
         draw.rectangle(((bbox.left, bbox.top), (bbox.right, bbox.bottom)), outline=color)
         draw.text((bbox.left, bbox.top), text="{} {}".format(category, prob), fill=color)
